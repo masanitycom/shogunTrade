@@ -1,78 +1,75 @@
-import { User } from './models/user';
-import { logger } from './logger';
+import type { User } from "./models/user"
+import { logger } from "./logger"
+import jwt from "jsonwebtoken"
+import bcrypt from "bcryptjs"
+import { PrismaClient } from "@prisma/client"
 
-// This is a mock implementation. Replace with actual authentication logic.
-let currentUser: User | null = null;
+const prisma = new PrismaClient()
 
-export async function getCurrentUser(): Promise<User | null> {
+const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key"
+
+export async function getCurrentUser(token: string): Promise<User | null> {
   try {
-    // In a real implementation, this would check the session or token
-    // and return the current user from the database
-    if (!currentUser) {
-      // Simulating an API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-
-      currentUser = {
-        id: '1',
-        email: 'user@example.com',
-        password: 'hashed_password',
-        name: 'John Doe',
-        referrerId: null,
-        level: '足軽',
-        nfts: [],
-        directReferrals: [],
-        usdtAddress: '0x1234567890123456789012345678901234567890',
-        deposits: [],
-        investment: 0,
-        additionalInvestment: 0,
-        initialDeposit: null,
-        maxSeriesInvestment: 0,
-        otherSeriesInvestment: 0,
-      };
-    }
-    return currentUser;
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string }
+    const user = await prisma.user.findUnique({ where: { id: decoded.userId } })
+    return user
   } catch (error) {
-    logger.error('Error in getCurrentUser:', error);
-    throw new Error('Failed to fetch user data');
+    logger.error("Error in getCurrentUser:", error)
+    throw new Error("Failed to fetch user data")
   }
 }
 
-export async function login(email: string, password: string): Promise<User | null> {
-  // In a real implementation, this would verify credentials and return the user
-  await new Promise(resolve => setTimeout(resolve, 500));
-  currentUser = {
-    id: '1',
-    email: email,
-    password: 'hashed_password',
-    name: 'John Doe',
-    referrerId: null,
-    level: 'Bronze',
-    nfts: [],
-    directReferrals: [],
-    usdtAddress: '0x1234567890123456789012345678901234567890',
-    deposits: [],
-    investment: 0,
-    additionalInvestment: 0,
-    initialDeposit: null
-  };
-  return currentUser;
+export async function login(email: string, password: string): Promise<{ user: User; token: string } | null> {
+  try {
+    const user = await prisma.user.findUnique({ where: { email } })
+    if (!user) {
+      return null
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password)
+    if (!isPasswordValid) {
+      return null
+    }
+
+    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "1d" })
+    return { user, token }
+  } catch (error) {
+    logger.error("Error in login:", error)
+    throw new Error("Login failed")
+  }
 }
 
-export async function logout(): Promise<void> {
-  // In a real implementation, this would clear the session or token
-  await new Promise(resolve => setTimeout(resolve, 500));
-  currentUser = null;
+export async function logout(token: string): Promise<void> {
+  // In a real implementation, you might want to invalidate the token
+  // For now, we'll just log the logout action
+  logger.info("User logged out", { token })
 }
 
-export async function register(user: Omit<User, 'id'>): Promise<User | null> {
-  // In a real implementation, this would create a new user in the database
-  await new Promise(resolve => setTimeout(resolve, 500));
-  const newUser: User = {
-    ...user,
-    id: Math.random().toString(36).substr(2, 9),
-  };
-  currentUser = newUser;
-  return newUser;
+export async function register(userData: Omit<User, "id">): Promise<{ user: User; token: string } | null> {
+  try {
+    const hashedPassword = await bcrypt.hash(userData.password, 10)
+    const user = await prisma.user.create({
+      data: {
+        ...userData,
+        password: hashedPassword,
+      },
+    })
+
+    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "1d" })
+    return { user, token }
+  } catch (error) {
+    logger.error("Error in register:", error)
+    throw new Error("Registration failed")
+  }
+}
+
+export async function verifyToken(token: string): Promise<string | null> {
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string }
+    return decoded.userId
+  } catch (error) {
+    logger.error("Error verifying token:", error)
+    return null
+  }
 }
 
