@@ -61,11 +61,10 @@ const mockRewardRequests: RewardRequest[] = [
   },
 ]
 
-// Remove or comment out the existing FEE_RATES constant
-// const FEE_RATES = {
-//   evo: 0.01, // 1% fee for EVO Card
-//   other: 0.03, // 3% fee for other wallets
-// }
+const FEE_RATES = {
+  evo: 0.01, // 1% fee for EVO Card
+  other: 0.03, // 3% fee for other wallets
+}
 
 export function RewardRequests() {
   const [requests, setRequests] = useState<RewardRequest[]>(mockRewardRequests)
