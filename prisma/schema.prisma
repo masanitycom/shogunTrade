@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,18 +8,58 @@ datasource db {
 }
 
 model User {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   name          String
-  userId        String   @unique
-  email         String   @unique
+  userId        String    @unique
+  email         String    @unique
   password      String
   referredById  String?
-  referredBy    User?    @relation("ReferralRelation", fields: [referredById], references: [id])
-  referrals     User[]   @relation("ReferralRelation")
+  referredBy    User?     @relation("ReferralRelation", fields: [referredById], references: [id])
+  referrals     User[]    @relation("ReferralRelation")
   usdtAddress   String?
   walletType    String
-  role          String   @default("USER")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  role          String    @default("USER")
+  level         String    @default("未投資")
+  maxSeriesInvestment   Float     @default(0)
+  otherSeriesInvestment Float     @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Relations
+  nfts          NFT[]
+  rewards       Reward[]
 }
 
+model NFT {
+  id                 String   @id @default(cuid())
+  name               String
+  price              Float
+  dailyRate          Float
+  maxDailyRate       Float
+  imageUrl           String
+  currentValue       Float
+  accumulatedRewards Float    @default(0)
+  isActive           Boolean  @default(true)
+  purchaseDate       DateTime @default(now())
+  operationStartDate DateTime @default(now())
+  
+  // Relations
+  userId             String
+  user               User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model Reward {
+  id        String   @id @default(cuid())
+  amount    Float
+  type      String   // 'REFERRAL', 'NFT_EARNING', etc.
+  status    String   @default("PENDING") // 'PENDING', 'PROCESSED', 'FAILED'
+  date      DateTime @default(now())
+  
+  // Relations
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
